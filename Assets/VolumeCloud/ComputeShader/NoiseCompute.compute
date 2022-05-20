@@ -1,0 +1,57 @@
+// Each #kernel tells which function to compile; you can have many kernels
+#pragma kernel CSMain
+static const int numThreads = 8
+// Create a RenderTexture with enableRandomWrite flag and set it
+// with cs.SetTexture
+RWTexture2D<float4> NoiseTexture;
+StructuredBuffer<float2> PointsBuffer;
+int CellNum;
+int CellLength;
+
+static const int2 offsets[] = 
+{
+    //center
+    int2(0,0),
+    //left
+    int2(1,0),
+    int2(1,-1),
+    int2(1,1),
+    //right
+    int2(-1,0),
+    int2(-1,-1),
+    int2(-1,1),
+    //updown
+    int2(0,-1),
+    in2(0,1), 
+}
+float maxComponent(float3 vec){
+    return max(vec.x,max(vec.y,vec.z));
+}
+float minComponent(float3 vec){
+    return min(vec.x,min(vec.y,vec.z));
+}
+[numthreads(numThreads,numThreads,1)]
+void CSMain (uint3 id : SV_DispatchThreadID){
+    int2 cellId = int2(id.x / CellLength; id.y / CellLength);
+    if(id.x = points[cellId.x+cellId.y*CellNum]){
+        
+    }
+}
+void Noise(StructuredBuffer<float2> points,int CellNum,float2 cellId){
+    
+    for(int cellOffsetIndex = 0;cellOffsetIndex<9;cellOffsetIndex++){
+        int2 adjID = cellId + Offset[cellOffsetIndex];
+        //当超过边界时将格子交换到另一侧
+        if(minComponent(adjID) == -1 || maxComponent(adjID) == CellNum){
+            int wrappedID = (adjID+CellNum)%(uint2)CellNum;
+            int adjCellIndex = wrappedID.x+CellNum*wrappedID.y;
+            float2 wrappedPoint = points[adjCellIndex];
+            for(int wrapOffsetIndex = 0;wrapOffsetIndex<8;wrapOffsetIndex++){
+                
+            }
+        }else{
+
+        }
+    }
+
+}

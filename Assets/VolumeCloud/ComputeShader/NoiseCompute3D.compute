@@ -1,0 +1,85 @@
+
+#pragma kernel CSMain
+RWTexture3D<float4> NoiseTexture;
+StructuredBuffer<int3> PointsBuffer;
+int CellNum;
+int CellLength;
+static const int3 offsets[] =
+{
+    //center
+    int3(0,0,0),
+    //right
+    int3(1,0,1),
+    int3(1,0,0),
+    int3(1,0,-1),
+    int3(1,-1,1),
+    int3(1,-1,0),
+    int3(1,-1,-1),
+    int3(1,1,1),
+    int3(1,1,0),
+    int3(1,1,-1),
+    //left
+    int3(-1,0,1),
+    int3(-1,0,0),
+    int3(-1,0,-1),
+    int3(-1,-1,1),
+    int3(-1,-1,0),
+    int3(-1,-1,-1),
+    int3(-1,1,1),
+    int3(-1,1,0),
+    int3(-1,1,-1),
+    //updown
+    int3(0,-1,1),
+    int3(0,-1,0),
+    int3(0,-1,-1),
+    int3(0,1,1),
+    int3(0,1,0),
+    int3(0,1,-1),
+    int3(0,0,1),
+    int3(0,0,-1),
+};
+
+
+int maxComponent(int3 vec){
+    return max(vec.x,max(vec.y,vec.z));
+}
+int minComponent(int3 vec){
+    return min(vec.x,min(vec.y,vec.z));
+}
+float Noise(StructuredBuffer<int3> points,int CellNum,int3 cellId,int3 samplePos){
+    float minSqrDst = 1000000;
+    for(int cellOffsetIndex = 0;cellOffsetIndex<27;cellOffsetIndex++){
+        int3 adjID = cellId + offsets[cellOffsetIndex];
+        //当超过边界时将格子交换到另一侧
+        if(minComponent(adjID) == -1 || maxComponent(adjID) == CellNum){
+            //return CellLength;
+            int3 wrappedID = (adjID+CellNum)%(uint3)CellNum;
+            int adjCellIndex = wrappedID.x+CellNum*(wrappedID.y+CellNum*wrappedID.z);
+            int3 wrappedPoint = points[adjCellIndex];
+            for(int wrapOffsetIndex = 0;wrapOffsetIndex<27;wrapOffsetIndex++){
+                int3 sampleOffset = (samplePos - (wrappedPoint + offsets[wrapOffsetIndex]*CellLength*CellNum));
+                minSqrDst = min(minSqrDst,dot(sampleOffset,sampleOffset));
+            }
+        }else{
+            int adjCellIndex = adjID.x + CellNum*(adjID.y+CellNum*adjID.z);
+            int3 sampleOffset = samplePos - points[adjCellIndex];
+            minSqrDst = min(minSqrDst, dot(sampleOffset,sampleOffset));
+        }
+    }
+    return sqrt(minSqrDst);
+}
+[numthreads(8,8,8)]
+void CSMain (uint3 id : SV_DispatchThreadID)
+{
+    int3 cellId = int3(0,0,0);
+    cellId.x = floor(id.x / CellLength);
+    cellId.y = floor(id.y / CellLength);
+    cellId.z = floor(id.z / CellLength);
+    NoiseTexture[id.xyz] = float4((float)cellId.x / (float)CellNum, (float)cellId.y / (float)CellNum, 1, 0);
+    //int pointsIndex = cellId.x + CellNum*(cellId.y + cellId.z*CellNum);
+    
+    float noise = Noise(PointsBuffer,CellNum,cellId,id);
+    int CellLength2 = CellLength*CellLength;
+    float strength = 1-noise/CellLength;
+    NoiseTexture[id.xyz] = float4(strength,strength,strength,0);
+}

@@ -1,0 +1,66 @@
+
+#pragma kernel CSMain
+RWTexture2D<float4> NoiseTexture;
+StructuredBuffer<int2> PointsBuffer;
+int CellNum;
+int CellLength;
+static const int2 offsets[] =
+{
+    //center
+    int2(0,0),
+    //left
+    int2(1,0),
+    int2(1,-1),
+    int2(1,1),
+    //right
+    int2(-1,0),
+    int2(-1,-1),
+    int2(-1,1),
+    //updown
+    int2(0,-1),
+    int2(0,1),
+};
+
+
+int maxComponent(int2 vec){
+    return max(vec.x,vec.y);
+}
+int minComponent(int2 vec){
+    return min(vec.x,vec.y);
+}
+float Noise(StructuredBuffer<int2> points,int CellNum,float2 cellId,int2 samplePos){
+    float minSqrDst = 1000000;
+    for(int cellOffsetIndex = 0;cellOffsetIndex<9;cellOffsetIndex++){
+        int2 adjID = cellId + offsets[cellOffsetIndex];
+        //当超过边界时将格子交换到另一侧
+        if(minComponent(adjID) == -1 || maxComponent(adjID) == CellNum){
+            //return CellLength;
+            int2 wrappedID = (adjID+CellNum)%(uint2)CellNum;
+            int adjCellIndex = wrappedID.x+CellNum*wrappedID.y;
+            float2 wrappedPoint = points[adjCellIndex];
+            for(int wrapOffsetIndex = 0;wrapOffsetIndex<9;wrapOffsetIndex++){
+                int2 sampleOffset = (samplePos - (wrappedPoint + offsets[wrapOffsetIndex]*CellLength*CellNum));
+                minSqrDst = min(minSqrDst,dot(sampleOffset,sampleOffset));
+            }
+        }else{
+            int adjCellIndex = adjID.x + CellNum*adjID.y;
+            int2 sampleOffset = samplePos - points[adjCellIndex];
+            minSqrDst = min(minSqrDst, dot(sampleOffset,sampleOffset));
+        }
+    }
+    return sqrt(minSqrDst);
+}
+[numthreads(8,8,1)]
+void CSMain (uint2 id : SV_DispatchThreadID)
+{
+    int2 cellId = int2(0,0);
+    cellId.x = floor(id.x / CellLength);
+    cellId.y = floor(id.y / CellLength);
+    NoiseTexture[id.xy] = float4((float)cellId.x / (float)CellNum, (float)cellId.y / (float)CellNum, 1, 0);
+    if(PointsBuffer[cellId.x + cellId.y * CellNum].x == id.x&&PointsBuffer[cellId.x + cellId.y*CellNum].y == id.y) {
+        NoiseTexture[id.xy] = float4(0, 0, 0, 1);
+    }
+    float noise = Noise(PointsBuffer,CellNum,cellId,id);
+    float strength = 1-noise/CellLength; 
+    NoiseTexture[id.xy] = float4(strength,strength,strength,0);
+}

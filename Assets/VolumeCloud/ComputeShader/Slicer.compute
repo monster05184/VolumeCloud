@@ -1,0 +1,12 @@
+
+#pragma kernel CSMain
+RWTexture2D<float4> Result;
+Texture3D<float4> voxels;
+int layer;
+
+[numthreads(8,8,8)]
+void CSMain (uint3 id : SV_DispatchThreadID)
+{
+    uint3 pos = uint3(id.x,id.y,layer);
+    Result[id.xy] = voxels[pos];
+}
