@@ -9,6 +9,10 @@ using UnityEngine.Rendering.Universal;
 [Serializable, VolumeComponentMenu("Addition-Post-processing/Cloud")]
 public class CloudPostProgress : VolumeComponent, IPostProcessComponent
 {
+    [Serializable]
+    public class NoiseSetting
+    {
+    }
 
     public Vector3Parameter size = new Vector3Parameter(Vector3.zero);
     public Vector3Parameter center = new Vector3Parameter(new Vector3(1,1,1));
